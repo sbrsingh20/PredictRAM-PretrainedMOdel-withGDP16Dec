@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import joblib
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.tree import DecisionTreeRegressor
 
 # Application Title
 st.title("Stock Return Predictor Using GDP Data")
@@ -14,11 +15,17 @@ if uploaded_file:
         # Load the overall results from the uploaded PKL file
         overall_results = joblib.load(uploaded_file)
         
-        # Check if models in the PKL file are compatible
+        # Check if models in the PKL file are compatible and handle monotonic constraints
         for result in overall_results:
             model = result.get('model')
             if isinstance(model, RandomForestRegressor):
                 model.n_jobs = 1  # Ensure compatibility if parallelism is an issue
+            elif isinstance(model, DecisionTreeRegressor):
+                # Handle the case where the model might have 'monotonic_cst' attribute
+                try:
+                    model.monotonic_cst = None  # Reset any constraints that could cause issues
+                except AttributeError:
+                    pass  # Ignore if 'monotonic_cst' is not present or cannot be reset
 
         # Show the stocks available in the uploaded PKL file
         stock_list = [result['stock'] for result in overall_results]
