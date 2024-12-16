@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import os
+from sklearn.ensemble import RandomForestRegressor
 
 # Application Title
 st.title("Stock Return Predictor Using GDP Data")
@@ -14,11 +14,17 @@ if uploaded_file:
         # Load the overall results from the uploaded PKL file
         overall_results = joblib.load(uploaded_file)
         
+        # Check if models in the PKL file are compatible
+        for result in overall_results:
+            model = result.get('model')
+            if isinstance(model, RandomForestRegressor):
+                model.n_jobs = 1  # Ensure compatibility if parallelism is an issue
+
         # Show the stocks available in the uploaded PKL file
         stock_list = [result['stock'] for result in overall_results]
         selected_stock = st.selectbox("Select a Stock:", stock_list)
 
-        # Load GDP Data for column selection (assumed GDP data as a placeholder)
+        # Load GDP Data for column selection
         gdp_file = st.file_uploader("Upload GDP Data (Excel file):", type=['xlsx'])
 
         if gdp_file:
