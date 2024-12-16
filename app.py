@@ -1,47 +1,38 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.tree import DecisionTreeRegressor
+from sklearn.pipeline import Pipeline
 
 # Application Title
 st.title("Stock Return Predictor Using GDP Data")
 
 # File Upload Section
-uploaded_file = st.file_uploader("Upload the PKL file containing trained models:", type=['pkl'])
+uploaded_model_file = st.file_uploader("Upload the PKL file containing trained models:", type=['pkl'])
 
-if uploaded_file:
+if uploaded_model_file:
     try:
         # Load the overall results from the uploaded PKL file
-        overall_results = joblib.load(uploaded_file)
-        
-        # Check if models in the PKL file are compatible and handle monotonic constraints
-        for result in overall_results:
-            model = result.get('model')
-            if isinstance(model, RandomForestRegressor):
-                model.n_jobs = 1  # Ensure compatibility if parallelism is an issue
-            elif isinstance(model, DecisionTreeRegressor):
-                # Check for and handle monotonic_cst if it exists
-                if hasattr(model, 'monotonic_cst'):
-                    delattr(model, 'monotonic_cst')  # Remove the 'monotonic_cst' attribute if it exists
+        overall_results = joblib.load(uploaded_model_file)
 
-        # Show the stocks available in the uploaded PKL file
+        # Extract list of stocks from the loaded model data
         stock_list = [result['stock'] for result in overall_results]
+        
+        # Select Stock
         selected_stock = st.selectbox("Select a Stock:", stock_list)
 
-        # Load GDP Data for column selection
+        # Upload GDP Data (Excel file)
         gdp_file = st.file_uploader("Upload GDP Data (Excel file):", type=['xlsx'])
 
         if gdp_file:
-            # Load GDP data to get column names
+            # Load the GDP data to get columns
             gdp_data = pd.read_excel(gdp_file, engine='openpyxl')
-            gdp_columns = gdp_data.columns.tolist()
-            
+
             # Display available columns and let the user select inputs
+            gdp_columns = gdp_data.columns.tolist()
             selected_columns = st.multiselect("Select GDP-related columns for prediction:", gdp_columns, default=['GDP', 'Inflation', 'Interest Rate'])
 
             if selected_columns:
-                # Display input fields for upcoming GDP values
+                # Display input fields for the selected columns
                 st.subheader("Input Upcoming Values for GDP Data:")
                 upcoming_values = {}
                 for column in selected_columns:
@@ -53,14 +44,20 @@ if uploaded_file:
                     model_result = next(result for result in overall_results if result['stock'] == selected_stock)
                     model = model_result['model']
 
-                    # Prepare the input DataFrame
+                    # Prepare the input data for prediction (upcoming GDP values)
                     input_data = pd.DataFrame([upcoming_values])
 
-                    # Predict using the selected model
-                    predicted_return = model.predict(input_data)[0]
+                    # Ensure the model is using the correct pre-processing steps
+                    if isinstance(model, Pipeline):
+                        # Use the pipeline to predict
+                        predicted_return = model.predict(input_data)[0]
+                    else:
+                        st.error("The model doesn't have the correct pipeline format!")
+                        predicted_return = None
 
                     # Display the prediction
-                    st.success(f"Expected Return for {selected_stock}: {predicted_return:.4f}")
+                    if predicted_return is not None:
+                        st.success(f"Expected Return for {selected_stock}: {predicted_return:.4f}")
 
     except Exception as e:
         st.error(f"An error occurred: {e}")
