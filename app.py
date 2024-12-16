@@ -21,11 +21,9 @@ if uploaded_file:
             if isinstance(model, RandomForestRegressor):
                 model.n_jobs = 1  # Ensure compatibility if parallelism is an issue
             elif isinstance(model, DecisionTreeRegressor):
-                # Handle the case where the model might have 'monotonic_cst' attribute
-                try:
-                    model.monotonic_cst = None  # Reset any constraints that could cause issues
-                except AttributeError:
-                    pass  # Ignore if 'monotonic_cst' is not present or cannot be reset
+                # Check for and handle monotonic_cst if it exists
+                if hasattr(model, 'monotonic_cst'):
+                    delattr(model, 'monotonic_cst')  # Remove the 'monotonic_cst' attribute if it exists
 
         # Show the stocks available in the uploaded PKL file
         stock_list = [result['stock'] for result in overall_results]
